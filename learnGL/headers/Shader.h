@@ -8,6 +8,11 @@
 //#include <sstream>
 #include <iostream>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+
 // because glsl doesn't support #include I use this libary to parse the source files and add includes
 // it supports nested includes but NOT headerguards like #ifdef
 // IT ALSO DOES NOT INGORE COMMENTS!
@@ -122,6 +127,11 @@ public:
 	{
 		int uniformLocation = glGetUniformLocation(ID, name.c_str());
 		glUniform4f(uniformLocation, x, y, z,w);
+	}
+	void setUniformMatrix4(const std::string& name, glm::mat4 matrix ) {
+		unsigned int uniformLocation = glGetUniformLocation(ID, name.c_str());
+		
+		glUniformMatrix4fv(uniformLocation, 1, GL_FALSE, glm::value_ptr(matrix));
 	}
 
 

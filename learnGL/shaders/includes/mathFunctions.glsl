@@ -1,3 +1,5 @@
+#ifndef MATH_FUNCTIONS_GLSL
+#define MATH_FUNCTIONS_GLSL
 
 float saturate(float value)
 {
@@ -46,3 +48,5 @@ vec4 lerp(vec4 a,vec4 b, float t)
 
     return result;
 }
+
+#endif

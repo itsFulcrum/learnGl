@@ -32,6 +32,21 @@
     <ClInclude Include="headers\Texture.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="headers\Camera.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\Model.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\Mesh.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\Object.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\Cubemap.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\simpleVertex.vert">
@@ -49,7 +64,7 @@
     <None Include="shaders\textureVertex.vert">
       <Filter>Quelldateien\Shaders</Filter>
     </None>
-    <None Include="shaders\unlitTexture.frag">
+    <None Include="shaders\pbrVertex.vert">
       <Filter>Quelldateien\Shaders</Filter>
     </None>
   </ItemGroup>

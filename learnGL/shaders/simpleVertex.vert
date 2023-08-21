@@ -8,8 +8,8 @@ out vec4 vertexColor;
 void main()
 {
 	float scale = 1.0f;
-	gl_Position = vec4(aPos.xyz, 1.0) * vec4(scale,scale,1,1);
-	
+	gl_Position = vec4(aPos.xyz, 1.0);
+
 	// outputs to fragment shader
 	position = vec4(aPos.xyz, 1.0);
 	vertexColor = vec4(aColor.rgb,1.0);

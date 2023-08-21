@@ -5,61 +5,42 @@
 #include<glad/glad.h>
 #include<GLFW/glfw3.h>
 
-#include<Shader.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
+
+#include<Shader.h>
 #include<Texture.h>
+#include<Camera.h>
+#include<Model.h>
+#include<Object.h>
+#include<Cubemap.h>
+
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double offsetX, double offsetY);
 //Settings
-const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_WIDTH = 1024;
 const unsigned int SCR_HEIGHT = 800;
+unsigned int CURRENT_WINDOW_WIDTH = SCR_WIDTH;
+unsigned int CURRENT_WINDOW_HEIGHT = SCR_HEIGHT;
+
+float deltaTime = 0.0;
+float lastFrame = 0.0;
 
 
-//Vertecies in Normalized Device Cooridnates
-float vertecies_left[]
-{
-	// left quad
-	// vert positions		// vert colors
-	-0.5f, 0.5f, 0.0f,		1.0f,0.0f,0.0f, // 0 top left  
-	-0.1f, 0.5f, 0.0f,		0.0f,1.0f,0.0f, // 1 top right
-	-0.1f, 0.0f, 0.0f,		0.0f,0.0f,1.0f, // 2 bot right
-	-0.5f, 0.0f, 0.0f,		1.0f,1.0f,1.0f  // 3 bot left	 
-
-};
-unsigned int indices_left[]
-{
-	0,1,3,	// left triangle
-	1,2,3  // Right triangle
-};
+// mouse
+float mouseLastX = SCR_WIDTH * 0.5;
+float mouseLastY = SCR_HEIGHT * 0.5;
+bool firstMouseInput = true;
 
 
-
-float vertecies_right[]
-{
-	 // Right polygon
-	// vert position	// vert colors   // texture coords
-	 0.5f, 0.5f, 0.0f,	1.0f,0.0f,0.0f,	 0.5f,1.0f,	// 0 top 
-	 0.9f, 0.0f, 0.0f,	0.0f,1.0f,0.0f,	 1.0f,0.5f,	// 1 right
-	 0.5f,-0.5f, 0.0f,	0.0f,0.0f,1.0f,  0.5f,0.0f, // 2 bottom
-	 0.1f, 0.0f, 0.0f,	1.0f,1.0f,1.0f,  0.0f,0.5f	// 3 left
-};
-
-
-unsigned int indices_right[]
-{
-	0,2,3,	// left triangle
-	0,2,1  // Right triangle
-};
-
-float TexCords_right[]
-{
-	0.5f,1.0f,
-	1.0f,0.5f,
-	0.5f,0.0f,
-	0.0f,0.5f
-};
-
+Camera mainCamera(CURRENT_WINDOW_WIDTH,CURRENT_WINDOW_HEIGHT);
 
 
 int main() {
@@ -80,8 +61,12 @@ int main() {
 	}
 	glfwMakeContextCurrent(window);
 	// register GLFW window resize callback to adjust openGl viewport on window resizes
+	
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
+	glfwSetCursorPosCallback(window, mouse_callback);
+	
+	glfwSetScrollCallback(window, scroll_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
 
 	// initialize glad "We pass GLAD the function to load the address of the OpenGL function pointers which is OS-specific"
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
@@ -93,148 +78,104 @@ int main() {
 	// set openGl rendering viewport at position and width/height
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 	
+
+	mainCamera.cameraMode = CAMERA_MODE_FLY;
+	mainCamera.position = glm::vec3(0.0f, 0.0f, 3.0f);
+
 	// generate a texture
-	
+	Texture albedoTexture("textures/environmentMap.png", true, true);
+	Texture normalTexture("textures/brick_normal.png", true, true);
 
-
-	Texture texture("textures/UVGrid.png", true, true);
 	Texture textureTwo("textures/Wallpaper.jpg", true, true);
+
+	// cubemap
 	
-	Shader unlitShader("shaders/simpleVertex.vert", "shaders/unlit.frag");
-	Shader unlitBlackShader("shaders/simpleVertex.vert", "shaders/unlitBlack.frag");
-	Shader unlitTextureShader("shaders/textureVertex.vert", "shaders/unlitTexture.frag");
 
-	//Shader fallbackShader("shaders/simpleVertex.glslVert", "shaders/fallback.glslFrag");
+	Cubemap cubemapTexture("textures/environmentMap.png",1024);
 
-	// 1. Bind vertex array object first
-	// 2. copy vertecies array in openGl vertex buffer buffer (bind and set vertex buffers)
-	// 3. specifying and binding the inecies for our polygons to the element buffer to draw triangles using indecies
-	// 4. Configure vertex attributes 
-	// 5. repeat for other VBO'S and VAO's
+	Shader skyboxShader("shaders/skybox.vert", "shaders/skybox.frag");
+	Shader lightShader("shaders/textureVertex.vert", "shaders/unlit.frag");
+	Shader pbrShader("shaders/pbrVertex.vert", "shaders/pbrFragment.frag");
+
+
+	Object Suzanne("fbx/SuzanneSmooth.fbx");
+	// icoshere model
+	Object Light("fbx/icoSphere.fbx");
+	Light.position = glm::vec3(6.0f, 4.0f, 0.0f);
+	Light.scale = glm::vec3(0.7f, 0.7f, 0.7f);
 	
-	// bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-	// 
+	Object skybox("fbx/skyboxMesh.fbx");
 	
-	unsigned int vertexBufferObject_LeftPoly;
-	unsigned int vertexArrayObject_LeftPoly;
-	unsigned int elementBufferObject_LeftPoly;
-	glGenVertexArrays(1, &vertexArrayObject_LeftPoly);
-	glGenBuffers(1, &vertexBufferObject_LeftPoly);
-	glGenBuffers(1, &elementBufferObject_LeftPoly);
 
-
-	unsigned int vertexBufferObject_RightPoly;
-	unsigned int vertexArrayObject_RightPoly;
-	unsigned int elementBufferObject_RightPoly;
-
-	glGenVertexArrays(1, &vertexArrayObject_RightPoly);
-	glGenBuffers(1, &vertexBufferObject_RightPoly);
-	glGenBuffers(1, &elementBufferObject_RightPoly);
-
-
-	// LEFT	
-	glBindVertexArray(vertexArrayObject_LeftPoly);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject_LeftPoly);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertecies_left), vertecies_left, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject_LeftPoly);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_left), indices_left, GL_STATIC_DRAW);
-	// attribute pointers for position data in vertexbuffer
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	// attribute pointers for vertex color data in vertexbuffer
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3*sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	glBindVertexArray(0); // unbind VAO // not neccecarry here because we bind a different one in the next line but hey 
-
-	
-	// RIGHT
-	glBindVertexArray(vertexArrayObject_RightPoly);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject_RightPoly);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertecies_right), vertecies_right, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject_RightPoly);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_right), indices_right, GL_STATIC_DRAW);
-	// attribute pointers for vertex position data in vertexbuffer
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	// attribute pointers for vertex color data in vertexbuffer
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3*sizeof(float)));
-	glEnableVertexAttribArray(1);
-	// attribute pointers for texture coords
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6*sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-
-	glBindVertexArray(0); // unbind VAO
-	
 	// wireframe mode
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	// number of attributes we can set in the shader supported by hardware
 	int nrAttributes;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
 	std::cout << "Maximum nr of vertex attributes supported: " << nrAttributes << std::endl;
 
-	//setting up the correct textures to texture samplers in shader
-	unlitTextureShader.use();
-	unlitTextureShader.setUniformInt("colorMap", 0);
-	unlitTextureShader.setUniformInt("textureMask", 1);
-	float mixValue = 0.5f;
+	//enable depth testing
+	glEnable(GL_DEPTH_TEST);
+
+	// hides mouse cursor and keeps it at center of the window
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 	// RenderLoop
 	while (!glfwWindowShouldClose(window)) 
 	{
 		// check input
 		processInput(window);
 
-		
-		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) 
-		{
-			mixValue = mixValue + 0.001f;
-			//std::cout << "new Mix Value:  " << mixValue << std::endl;
-		}
-		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-			mixValue = mixValue - 0.001f;
-			//std::cout << "new Mix Value:  " << mixValue << std::endl;
-		}
-			
+		float time = static_cast<float>(glfwGetTime());
+		deltaTime = time - lastFrame;
+		lastFrame = time;
 
 		
-
-		float time = glfwGetTime();
-		float sinTime = 0.5f * sin(time*2) +0.5; 
-		
-
 		// rendering commands
 		glClearColor(0.02f, 0.08f,0.14f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		// draw Polygons opaque
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		
-		unlitShader.use(); // glslUseProgram(id)
-		unlitShader.setUniformFloat("_sinTime", sinTime);
-		
-		// first quad opaque
-		glBindVertexArray(vertexArrayObject_LeftPoly);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		// second quad opaque
-		unlitTextureShader.use();
-		texture.BindToLocation(0);
-		textureTwo.BindToLocation(1);
-		
-		unlitTextureShader.setUniformFloat("mixValue", mixValue);
-		glBindVertexArray(vertexArrayObject_RightPoly);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		//glDrawArrays(GL_TRIANGLES, 0, 6); // use if we dont have indecies
 
-		//Draw again in wireframe mode using second shader programm
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		unlitBlackShader.use();
-		// first quad wireframe
-		glBindVertexArray(vertexArrayObject_LeftPoly);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		// second quad wirefram
-		glBindVertexArray(vertexArrayObject_RightPoly);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glm::mat4 viewMatrix = mainCamera.GetViewMatrix();
+		glm::mat4 projectionMatrix = mainCamera.GetProjectionMatrix();
 
+
+		//Suzanne.rotation.x = (0.5 * sin(time * 0.1) +0.5)*360;
+		Suzanne.rotation.x = -90.0f;
+		//Suzanne.rotation.y = time * 5.0f;
+		Suzanne.rotation.z = 0.0f;
+
+		pbrShader.use();
+		pbrShader.setUniformFloat3("_lightPositionWS", Light.position.x, Light.position.y, Light.position.z);
+		pbrShader.setUniformFloat("_lightStrength", 1);
+		pbrShader.setUniformFloat3("_cameraPositionWS", mainCamera.position.x, mainCamera.position.y, mainCamera.position.z);
+
+		albedoTexture.BindToLocation(0);
+		pbrShader.setUniformInt("_albedoMap", 0);
+		normalTexture.BindToLocation(1);
+		pbrShader.setUniformInt("_normalMap", 1);
+
+		Suzanne.Render(pbrShader,viewMatrix,projectionMatrix);
+
+
+		// render light source ( as an object placeholder atm
+		//lightShader.use();
+		Light.Render(lightShader, viewMatrix,projectionMatrix);
+
+		// Render skybox last
+		glDepthFunc(GL_LEQUAL);
+		skyboxShader.use();
+		cubemapTexture.Bind();
+		skyboxShader.setUniformInt("_skybox", 0);
+		glm::mat4 skyboxViewMatrix = glm::mat4(glm::mat3(viewMatrix));
+		skybox.Render(skyboxShader, skyboxViewMatrix, projectionMatrix);
+		glDepthFunc(GL_LESS);
 
 		// swap buffers and display new frame
 		glfwSwapBuffers(window);
@@ -250,11 +191,70 @@ int main() {
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
 {
 	// match new window size upon resizing to openGl render area
+	CURRENT_WINDOW_WIDTH = width;
+	CURRENT_WINDOW_HEIGHT = height;
 	glViewport(0, 0, width, height);
+	// main camera need to know screen size to calculate the correct projection matrix
+	mainCamera.updateScreenSize((unsigned int)width, (unsigned int)height);
 }
 
 void processInput(GLFWwindow* window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+		
+
+	
+
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) 
+	{
+		mainCamera.ProcessKeyboardInput(CAMERA_FORWARD, deltaTime);
+	}
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	{
+		mainCamera.ProcessKeyboardInput(CAMERA_LEFT, deltaTime);
+	}
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	{
+		mainCamera.ProcessKeyboardInput(CAMERA_BACKWARD, deltaTime);
+	}
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	{
+		mainCamera.ProcessKeyboardInput(CAMERA_RIGHT, deltaTime);
+	}
+
+}
+
+void mouse_callback(GLFWwindow* window, double posX, double posY)
+{
+	if (firstMouseInput)
+	{
+		mouseLastX = (float)posX;
+		mouseLastY = (float)posY;
+		firstMouseInput = false;
+	}
+
+	// called each time the mouse is moved
+	float mouseOffsetX = (float)posX - mouseLastX;
+	float mouseOffsetY =  mouseLastY - (float)posY;
+	mouseLastX = (float)posX;
+	mouseLastY = (float)posY;
+
+
+	mainCamera.ProessMouseInput(mouseOffsetX, mouseOffsetY);
+}
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+	{
+		mainCamera.cameraMode = CAMERA_MODE_EDIT;
+	}
+	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+	{
+		mainCamera.cameraMode = CAMERA_MODE_FLY;
+	}
+}
+void scroll_callback(GLFWwindow* window, double offsetX, double offsetY) 
+{
+	mainCamera.ProcessMouseScrollInput((float)offsetY,deltaTime);
 }
