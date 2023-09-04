@@ -14,7 +14,7 @@
 class Texture 
 {
 public:
-	unsigned int ID;
+	unsigned int ID = NULL;
 
 private:
 	bool m_hasAlphaChannel = false;
@@ -23,8 +23,14 @@ private:
 public:
 
 	// constructor
-	Texture(const char* imagePath, bool flipImageVertically, bool generateMipmaps)
+	Texture()
 	{
+	};
+
+
+	void generateFromFile(const char* imagePath, bool flipImageVertically, bool generateMipmaps)
+	{
+
 		glGenTextures(1, &ID);
 		glBindTexture(GL_TEXTURE_2D, ID);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -36,8 +42,11 @@ public:
 		int width, height, channelsAmount;
 
 		stbi_set_flip_vertically_on_load(flipImageVertically);
+		//stbi_ldr_to_hdr_gamma(1.0f/2.2f);
+
 
 		unsigned char* textureData = stbi_load(imagePath, &width, &height, &channelsAmount, 0);
+
 
 		m_channelsAmount = channelsAmount;
 		if (textureData)
@@ -55,12 +64,14 @@ public:
 			else if (channelsAmount > 4)
 			{
 				std::cout << "ERROR::TEXTURE::HAS_MORE_THAN_4_CHANNELS\n" << "Filepath: " << imagePath << "\n" << "-------------------------------" << std::endl;
-
+				glDeleteTextures(1, &ID);
+				ID = NULL;
 			}
 			else
 			{
 				std::cout << "ERROR::TEXTURE::HAS_LESS_THAN_3_CHANNELS\n" << "Filepath: " << imagePath << "\n" << "-------------------------------" << std::endl;
-
+				glDeleteTextures(1, &ID);
+				ID = NULL;
 			}
 
 			if (generateMipmaps)
@@ -71,14 +82,29 @@ public:
 		else
 		{
 			std::cout << "ERROR::TEXTURE::FAILD_TO_LOAD\n" << "Filepath: " << imagePath << "\n" << "\n -- --------------------------------------------------- -- " << std::endl;
-			
+			glDeleteTextures(1, &ID);
+			ID = NULL;
 		}
 
 		stbi_image_free(textureData);
-	};
+	}
+
+
+	bool isInitialized()
+	{
+		if (ID != NULL)
+			return true;
+
+		return false;
+	}
 
 	void BindToLocation(unsigned int activeTextureLocation)
 	{
+		if (ID == NULL) {
+			std::cout << "ERROR::TEXTURE::NO_TEXTURE_HAS_BEEN_GENEREATED" << std::endl;
+			return;
+		}
+
 		if (activeTextureLocation > 16 || activeTextureLocation < 0) 
 		{
 			std::cout << "ERROR::TEXTURE::CANT_BIND_TEXTURE_TO_LOCATION: " << activeTextureLocation << " ONLY_RANGE_0_TO_16_ALLOWED\n" << "BOUND_TO_DEFAULT_LOCATION: 0\n" << "\n -- --------------------------------------------------- -- " << std::endl;
@@ -93,10 +119,17 @@ public:
 
 	bool HasAlphaCannel()
 	{
+		if (ID == NULL)
+			return NULL;
+
+
 		return m_hasAlphaChannel;
 	}
 	int GetChannelsAmount() 
 	{
+		if (ID == NULL)
+			return NULL;
+
 		return m_channelsAmount;
 	}
 

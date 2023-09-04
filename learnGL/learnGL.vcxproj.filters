@@ -47,6 +47,9 @@
     <ClInclude Include="headers\Cubemap.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="headers\pbrMaterial.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\simpleVertex.vert">

@@ -83,21 +83,33 @@ int main() {
 	mainCamera.position = glm::vec3(0.0f, 0.0f, 3.0f);
 
 	// generate a texture
-	Texture albedoTexture("textures/environmentMap.png", true, true);
-	Texture normalTexture("textures/brick_normal.png", true, true);
+	Texture albedoTexture;
+	Texture normalTexture;
+	Texture roughnessTexture;
+	Texture metallicTexture;
+	Texture emissiveTexture;
+	Texture aoTexture;
 
-	Texture textureTwo("textures/Wallpaper.jpg", true, true);
+	albedoTexture.generateFromFile("textures/panel_albedo.png", true, true);
+	normalTexture.generateFromFile("textures/panel_normal.png", true, true);
+	roughnessTexture.generateFromFile("textures/panel_roughness.png", true, true);
+	metallicTexture.generateFromFile("textures/panel_metallic.png", true, true);
+	emissiveTexture.generateFromFile("textures/panel_emissive.png", true, true);
+	aoTexture.generateFromFile("textures/panel_ao.png", true, true);
 
+	
 	// cubemap
 	
 
-	Cubemap cubemapTexture("textures/environmentMap.png",1024);
+	Cubemap cubemapTexture("textures/kloppenheim.hdr",1024,true);
+
 
 	Shader skyboxShader("shaders/skybox.vert", "shaders/skybox.frag");
 	Shader lightShader("shaders/textureVertex.vert", "shaders/unlit.frag");
 	Shader pbrShader("shaders/pbrVertex.vert", "shaders/pbrFragment.frag");
 
 
+	//Object Suzanne("fbx/unitPlane.fbx");
 	Object Suzanne("fbx/SuzanneSmooth.fbx");
 	// icoshere model
 	Object Light("fbx/icoSphere.fbx");
@@ -117,7 +129,9 @@ int main() {
 
 	//enable depth testing
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
+	glDisable(GL_FRAMEBUFFER_SRGB);
 	// hides mouse cursor and keeps it at center of the window
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -155,13 +169,33 @@ int main() {
 		pbrShader.setUniformFloat3("_lightPositionWS", Light.position.x, Light.position.y, Light.position.z);
 		pbrShader.setUniformFloat("_lightStrength", 1);
 		pbrShader.setUniformFloat3("_cameraPositionWS", mainCamera.position.x, mainCamera.position.y, mainCamera.position.z);
-
+		
+		cubemapTexture.BindIrradianceCubemap(7);
+		pbrShader.setUniformInt("_irradianceMap", 7);
+		cubemapTexture.BindPrefilteredCubemap(8);
+		pbrShader.setUniformInt("_prefilterMap", 8);
+		cubemapTexture.BindBrdfLutTexture(9);
+		pbrShader.setUniformInt("_brdfLUT", 9);
+		
+		
+		
 		albedoTexture.BindToLocation(0);
 		pbrShader.setUniformInt("_albedoMap", 0);
 		normalTexture.BindToLocation(1);
 		pbrShader.setUniformInt("_normalMap", 1);
+		roughnessTexture.BindToLocation(2);
+		pbrShader.setUniformInt("_roughnessMap", 2);
+		metallicTexture.BindToLocation(3);
+		pbrShader.setUniformInt("_metallicMap", 3);
+		emissiveTexture.BindToLocation(6);
+		pbrShader.setUniformInt("_emissionMap", 6);
+		// ao location 4
+		// height map location 5
+		// emmission location 6
 
 		Suzanne.Render(pbrShader,viewMatrix,projectionMatrix);
+
+
 
 
 		// render light source ( as an object placeholder atm
@@ -171,11 +205,12 @@ int main() {
 		// Render skybox last
 		glDepthFunc(GL_LEQUAL);
 		skyboxShader.use();
-		cubemapTexture.Bind();
+		cubemapTexture.BindColorCubemap(0);
 		skyboxShader.setUniformInt("_skybox", 0);
 		glm::mat4 skyboxViewMatrix = glm::mat4(glm::mat3(viewMatrix));
 		skybox.Render(skyboxShader, skyboxViewMatrix, projectionMatrix);
 		glDepthFunc(GL_LESS);
+
 
 		// swap buffers and display new frame
 		glfwSwapBuffers(window);

@@ -152,6 +152,7 @@
     <ClInclude Include="headers\Mesh.h" />
     <ClInclude Include="headers\Model.h" />
     <ClInclude Include="headers\Object.h" />
+    <ClInclude Include="headers\pbrMaterial.h" />
     <ClInclude Include="headers\Shader.h" />
     <ClInclude Include="headers\Texture.h" />
   </ItemGroup>

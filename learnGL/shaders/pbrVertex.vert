@@ -13,10 +13,10 @@ uniform mat4 _viewMatrix;
 uniform mat4 _projectionMatrix;
 
 out vec2 uv;
-out vec3 positionOS;
-out vec3 positionWS;
-out vec3 normalOS;
-out vec3 normalWS;
+out vec3 position_WS;
+out vec3 normal_WS;
+//out vec3 position_OS;
+//out vec3 normal_OS;
 out mat3 tangentToWorldMatrix;
 
 void main()
@@ -25,16 +25,11 @@ void main()
 	// outputs to fragment shader
 	uv = aTexCoord;
 
-	positionOS = aPos;
-	positionWS = vec3(_modelMatrix * vec4(aPos.xyz, 1.0));
+	//position_OS = aPos;
+	position_WS = vec3(_modelMatrix * vec4(aPos.xyz, 1.0));
 
-	//normalOS = aNormal;
-	/*
-	Inversing matrices is a costly operation for shaders, so wherever possible try to avoid doing inverse operations since they have to be done on each vertex of your scene.
-	For learning its fine, but for an efficient application you'll want to calculate the normal matrix on the CPU
-	and send it to the shaders via a uniform before drawing (just like the model matrix).*/
-	normalOS = normalize(aNormal);
-	normalWS = vec4(_normalMatrix * vec4(normalOS,0.0f)).xyz;
+	//normal_OS = aNormal;
+	normal_WS = vec4(_normalMatrix * vec4(aNormal,0.0f)).xyz;
 
 // try multiplying with normal matrix
 	vec3 T = normalize(vec3(_normalMatrix * vec4(aTangent,   0.0)));
